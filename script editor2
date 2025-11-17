@@ -30,7 +30,7 @@ class DetailedInfoPanel:
             width=400, 
             height=250, 
             position_x= 10,                    # X 좌표 지정
-            position_y= screen_height - 250/2, # Y 좌표 지정
+            position_y= screen_height - 250, # Y 좌표 지정
             allow_docking=True)
         
         # UI 위젯 초기화 및 레이아웃 설정
