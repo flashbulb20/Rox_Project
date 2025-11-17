@@ -74,3 +74,48 @@ if 'info_window' in globals():
 
 info_window = create_info_window()
 print(f"'{info_window.title}' Window created at ({pos_x}, {pos_y}).")
+
+#밑에 부분은 아직 확실치 않음
+if info_window and hasattr(info_window.frame, 'children') and info_window.frame.children:
+    # 간단히 윈도우를 새로 만들고 Label을 저장합니다.
+    info_window.destroy()
+    
+    class InfoPanel:
+        def __init__(self):
+            self.window = ui.Window(
+                title="Live Data",
+                width=300,
+                height=150
+                position_x=pos_x + 50,
+                position_y=pos_y + 50,
+                allow_docking=True
+            )
+            
+            with self.window.frame:
+                with ui.VStack(spacing=5):
+                    self.label = ui.Label("Waiting for data...", height=30)
+                    
+            self.timeline = omni.timeline.get_timeline_interface()
+            # 프레임 업데이트 이벤트 구독
+            self.subscription = omni.kit.app.get_app().get_update_event_stream().create_subscription_to_pop(
+                self.on_update, name="InfoPanel Update"
+            )
+            self.counter = 0
+
+        def on_update(self, event):
+            # 시뮬레이션이 재생 중일 때만 업데이트
+            if self.timeline.is_playing():
+                # 매 프레임마다 카운터를 증가시키고 Label을 업데이트합니다.
+                self.counter += 1
+                current_time = self.timeline.get_current_time()
+                self.label.text = f"Frame: {self.counter}\nTime: {current_time:.2f}s"
+                
+        def destroy(self):
+            self.subscription = None
+            self.window.destroy()
+
+    if 'live_panel' in globals() and live_panel:
+        live_panel.destroy()
+        
+    live_panel = InfoPanel()
+    print("Live Data Panel initialized and subscribed to update loop.")
