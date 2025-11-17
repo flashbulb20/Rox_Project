@@ -1,0 +1,190 @@
+import omni.ui as ui
+import omni.timeline
+import omni.kit.app
+import carb
+from typing import Dict
+
+# 1. 정보 패널 클래스 정의
+class DetailedInfoPanel:
+    def __init__(self):
+        # UI 상태를 저장할 딕셔너리
+        self.data: Dict[str, any] = {
+            "is_playing": False,
+            "current_time": 0.0,
+            "last_detected_color": "None",
+            "classification_id": "00",
+            "total_count": 0,
+            "red_count": 0,
+            "blue_count": 0,
+            "green_count": 0,
+        }
+
+        # Omniverse Kit/Carb 설정을 통해 주 모니터의 해상도 정보를 가져옵니다.
+        settings = carb.settings.get_settings()
+        screen_width = settings.get_as_int("/app/window/width")
+        screen_height = settings.get_as_int("/app/window/height")
+        
+        # 윈도우 생성
+        self.window = ui.Window(
+            title="Info Window", 
+            width=400, 
+            height=250, 
+            position_x= 10,                       # X 좌표 지정
+            position_y= screen_height - height/2, # Y 좌표 지정
+            allow_docking=True)
+        
+        # UI 위젯 초기화 및 레이아웃 설정
+        with self.window.frame:
+            with ui.VStack(spacing=5, height=0):
+                # 시뮬레이션 상태 라벨
+                self.status_label = ui.Label(
+                    "🔴 Simulation Inactive", 
+                    height=20, 
+                    alignment=ui.Alignment.CENTER,
+                    style={"font_size": 18, "color": 0xFF888888} # 회색
+                )
+                ui.Separator()
+                
+                # 데이터 표시 라벨 (VStack 안에 Grid를 사용하여 깔끔하게 정렬)
+                with ui.Grid(column_count=2, spacing=5):
+                    # Time
+                    ui.Label("Time:", alignment=ui.Alignment.RIGHT)
+                    self.time_label = ui.Label("--", alignment=ui.Alignment.LEFT)
+
+                    # Detected Color
+                    ui.Label("Color:", alignment=ui.Alignment.RIGHT)
+                    self.color_label = ui.Label("--", alignment=ui.Alignment.LEFT)
+                    
+                    # Classification ID
+                    ui.Label("Class ID:", alignment=ui.Alignment.RIGHT)
+                    self.id_label = ui.Label("--", alignment=ui.Alignment.LEFT)
+                
+                ui.Separator()
+
+                # Count 정보 표시 (Grid)
+                with ui.Grid(column_count=2, spacing=5):
+                    ui.Label("Total Processed:", alignment=ui.Alignment.RIGHT)
+                    self.total_count_label = ui.Label("0", alignment=ui.Alignment.LEFT)
+                    
+                    # Individual Counts
+                    ui.Label("R/G/B Count:", alignment=ui.Alignment.RIGHT)
+                    self.rgb_count_label = ui.Label("R:0 / G:0 / B:0", alignment=ui.Alignment.LEFT)
+
+        # 타임라인 및 업데이트 구독 설정
+        self.timeline = omni.timeline.get_timeline_interface()
+        self.subscription = omni.kit.app.get_app().get_update_event_stream().create_subscription_to_pop(
+            self.on_update, name="DetailedInfoPanel Update"
+        )
+        
+        # 초기 UI 업데이트 (시뮬레이션 전 상태 표시)
+        self.update_ui_elements()
+        carb.log_info("Detailed Info Panel Initialized.")
+
+    # 2. UI 위젯 업데이트 함수
+    def update_ui_elements(self):
+        """데이터(self.data)를 기반으로 모든 UI 위젯을 업데이트합니다."""
+        
+        # 상태 라벨 업데이트
+        is_playing = self.timeline.is_playing()
+        
+        if is_playing:
+            # 재생 중
+            self.status_label.text = "🟢 Simulation Running"
+            self.status_label.set_style({"color": 0xFF58FA2A}) # 녹색
+        else:
+            # 일시 정지 또는 중지
+            self.status_label.text = "🔴 Simulation Paused/Stopped"
+            self.status_label.set_style({"color": 0xFFFA2A2A}) # 빨간색
+            
+            # 시뮬레이션 정지 시 시간 및 데이터 초기화 또는 유지 (여기서는 유지)
+            if self.timeline.get_current_time() == 0.0:
+                 self.time_label.text = "--"
+                 
+        # 데이터 라벨 업데이트 (재생 중일 때만 실시간 데이터를 반영)
+        self.time_label.text = f"{self.data['current_time']:.2f} s"
+
+        # 색상 라벨 및 ID
+        color = self.data['last_detected_color']
+        class_id = self.data['classification_id']
+        
+        # 색상에 따라 텍스트 색상 변경 (예시)
+        color_style = {"color": 0xFFFFFFFF}
+        if color == "Red":
+            color_style = {"color": 0xFFFF5555}
+        elif color == "Green":
+            color_style = {"color": 0xFF55FF55}
+        elif color == "Blue":
+            color_style = {"color": 0xFF5555FF}
+            
+        self.color_label.text = color
+        self.color_label.set_style(color_style)
+        self.id_label.text = class_id
+
+        # 카운트 정보
+        self.total_count_label.text = str(self.data['total_count'])
+        self.rgb_count_label.text = (
+            f"R:{self.data['red_count']} / G:{self.data['green_count']} / B:{self.data['blue_count']}"
+        )
+
+
+    # 3. 시뮬레이션 프레임 업데이트 콜백 함수
+    def on_update(self, event):
+        """매 시뮬레이션 프레임마다 호출됩니다."""
+        
+        # 시뮬레이션이 재생 중일 때만 데이터 업데이트 로직 실행
+        if self.timeline.is_playing():
+            # (A) 시뮬레이션 시간 업데이트
+            self.data["current_time"] = self.timeline.get_current_time()
+            
+            # (B) 더미 데이터 업데이트 (실제 로봇/카메라 데이터로 대체해야 함)
+            self.simulate_detection_logic()
+            
+        # (C) UI 업데이트 (재생 중이든 아니든 상태 라벨 등을 업데이트해야 함)
+        self.update_ui_elements()
+
+
+    # 4. (예시) 더미 감지 로직 - 실제 시뮬레이션 데이터로 대체 필요
+    def simulate_detection_logic(self):
+        """이 함수는 실제 센서 데이터 읽기, 색상 분석, 객체 분류 코드로 대체되어야 합니다."""
+        
+        frame = int(self.data["current_time"] * 60) # 초당 60프레임 가정
+        
+        if frame % 100 == 0: # 100프레임마다 새 객체 감지 시뮬레이션
+            self.data["total_count"] += 1
+            current_count = self.data["total_count"]
+            
+            if current_count % 3 == 1:
+                # 빨간색 감지 시뮬레이션
+                self.data["last_detected_color"] = "Red"
+                self.data["classification_id"] = "R-101"
+                self.data["red_count"] += 1
+            elif current_count % 3 == 2:
+                # 녹색 감지 시뮬레이션
+                self.data["last_detected_color"] = "Green"
+                self.data["classification_id"] = "G-202"
+                self.data["green_count"] += 1
+            else:
+                # 파란색 감지 시뮬레이션
+                self.data["last_detected_color"] = "Blue"
+                self.data["classification_id"] = "B-303"
+                self.data["blue_count"] += 1
+        else:
+             # 감지되지 않을 때 (이전 값 유지)
+             pass
+
+
+    # 5. 창 종료 및 구독 해지
+    def destroy(self):
+        self.subscription = None # 구독 해지
+        self.window.destroy()
+        carb.log_info("Detailed Info Panel Destroyed.")
+
+
+# 6. 인스턴스 생성 및 실행 (스크립트 에디터 실행 부분)
+# 기존에 live_panel이 있다면 정리
+if 'live_panel' in globals() and isinstance(live_panel, DetailedInfoPanel):
+    live_panel.destroy()
+    
+# 새 인스턴스 생성
+live_panel = DetailedInfoPanel()
+print("Custom Info Panel setup complete. Press Play in the simulator to see updates.")
