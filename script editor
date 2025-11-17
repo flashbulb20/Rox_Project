@@ -1,0 +1,24 @@
+# script editor
+from isaacsim import SimulationApp
+
+# 윈도우 창을 띄우기 위해 headless=False 설정
+simulation_app = SimulationApp({"headless": False})
+
+# ... 시뮬레이션 코드 ...
+
+# 애플리케이션 종료 시
+simulation_app.close()
+
+
+
+
+#이건어디에?
+import omni.kit.viewport.utility as vu
+
+# 새로운 뷰포트 창을 생성하는 예시 (더 복잡한 API 사용)
+# 이 코드는 Isaac Sim 버전에 따라 다를 수 있으며, 뷰포트를 관리하는 확장 기능이 활성화되어 있어야 합니다.
+
+# viewport_api = vu.get_default_viewport_window() 
+# 또는
+# from omni.kit.viewport.utility import create_viewport_window
+# create_viewport_window(name="New Viewport", width=800, height=600)
