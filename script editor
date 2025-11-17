@@ -4,7 +4,7 @@ import carb
 # 1. 윈도우 생성 함수 정의
 def create_info_window():
     # 윈도우 이름과 크기 설정
-    window_title = "My Custom Info"
+    window_title = "My Robot Info"
     
     # carb.get_framework().get_settings()를 사용하여 윈도우 크기 등의 설정을 가져올 수도 있습니다.
     
@@ -21,7 +21,7 @@ def create_info_window():
     with my_window.frame:
         with ui.VStack(spacing=5):
             # 헤더 텍스트
-            ui.Label("🤖 Robot Status", height=20, alignment=ui.Alignment.CENTER, style={"font_size": 18})
+            ui.Label("Robot Status", height=20, alignment=ui.Alignment.CENTER, style={"font_size": 18})
             ui.Spacer(height=5)
             
             # 정보 표시 (이 Label의 값을 업데이트하여 정보를 갱신합니다)
