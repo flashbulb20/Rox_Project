@@ -38,7 +38,7 @@ class DetailedInfoPanel:
             with ui.VStack(spacing=5, height=0):
                 # 시뮬레이션 상태 라벨
                 self.status_label = ui.Label(
-                    "🔴 Simulation Inactive", 
+                    "Simulation Inactive", 
                     height=20, 
                     alignment=ui.Alignment.CENTER,
                     style={"font_size": 18, "color": 0xFF888888} # 회색
@@ -97,11 +97,11 @@ class DetailedInfoPanel:
         
         if is_playing:
             # 재생 중
-            self.status_label.text = "🟢 Simulation Running"
+            self.status_label.text = "Simulation Running"
             self.status_label.set_style({"color": 0xFF58FA2A}) # 녹색
         else:
             # 일시 정지 또는 중지
-            self.status_label.text = "🔴 Simulation Paused/Stopped"
+            self.status_label.text = "Simulation Paused/Stopped"
             self.status_label.set_style({"color": 0xFFFA2A2A}) # 빨간색
             
             # 시뮬레이션 정지 시 시간 및 데이터 초기화 또는 유지 (여기서는 유지)
