@@ -24,7 +24,7 @@ WINDOW_HEIGHT = 250
 # X 위치: 화면 왼쪽 끝 (0) 또는 약간의 여백 (예: 10픽셀)
 pos_x = 10 
 # Y 위치: 화면 높이 - 창 높이 - 약간의 여백
-pos_y = screen_height - WINDOW_HEIGHT - 40 # 40은 하단 Omniverse Bar와 Windows 작업 표시줄 등을 고려한 여백
+pos_y = screen_height - WINDOW_HEIGHT # 40은 하단 Omniverse Bar와 Windows 작업 표시줄 등을 고려한 여백
 
 # 윈도우 생성 함수 정의 및 위치 지정
 def create_info_window():
@@ -78,7 +78,7 @@ if info_window and hasattr(info_window.frame, 'children') and info_window.frame.
             self.window = ui.Window(
                 title="Live Data",
                 width=300,
-                height=150
+                height=150,
                 position_x=pos_x + 50,
                 position_y=pos_y + 50,
                 allow_docking=True
