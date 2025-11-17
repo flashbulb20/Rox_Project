@@ -45,32 +45,6 @@ class DetailedInfoPanel:
                 )
                 ui.Separator()
                 
-                # 데이터 표시 라벨 (VStack 안에 Grid를 사용하여 깔끔하게 정렬)
-                with ui.Grid(column_count=2, spacing=5):#이부분문제
-                    # Time
-                    ui.Label("Time:", alignment=ui.Alignment.RIGHT)
-                    self.time_label = ui.Label("--", alignment=ui.Alignment.LEFT)
-
-                    # Detected Color
-                    ui.Label("Color:", alignment=ui.Alignment.RIGHT)
-                    self.color_label = ui.Label("--", alignment=ui.Alignment.LEFT)
-                    
-                    # Classification ID
-                    ui.Label("Class ID:", alignment=ui.Alignment.RIGHT)
-                    self.id_label = ui.Label("--", alignment=ui.Alignment.LEFT)
-                
-                ui.Separator()
-
-                # Count 정보 표시 (Grid)
-                with ui.Grid(column_count=2, spacing=5):
-                    ui.Label("Total Processed:", alignment=ui.Alignment.RIGHT)
-                    self.total_count_label = ui.Label("0", alignment=ui.Alignment.LEFT)
-                    
-                    # Individual Counts
-                    ui.Label("R/G/B Count:", alignment=ui.Alignment.RIGHT)
-                    self.rgb_count_label = ui.Label("R:0 / G:0 / B:0", alignment=ui.Alignment.LEFT)
-
-
                 # 데이터 표시 라벨 (Grid를 Frame으로 대체하고, GridLayout을 사용)
                 # ui.Grid(column_count=2, spacing=5) 대신 아래 코드를 사용해보세요.
 
