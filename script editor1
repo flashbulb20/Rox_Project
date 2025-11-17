@@ -57,13 +57,6 @@ def create_info_window():
                 # 텍스트가 왼쪽 정렬되도록 설정
                 alignment=ui.Alignment.LEFT_CENTER
             )
-            
-            # 버튼 추가
-            ; def on_button_click():
-            ;     carb.log_info("Button Clicked! Updating status...")
-            ;     # 예시: 버튼 클릭 시 정보 업데이트
-            ;     info_label.text = "Position: X=1.5, Y=2.2, Z=0.1 (UPDATED)"
-            ; ui.Button("Update Info", clicked_fn=on_button_click)
 
     # 생성된 윈도우 객체 반환 (나중에 닫거나 제어하기 위해)
     return my_window
