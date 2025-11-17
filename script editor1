@@ -1,0 +1,76 @@
+import omni.ui as ui
+import omni.kit.app
+import omni.timeline
+import carb
+
+# 화면 해상도 정보 가져오기
+# Omniverse Kit/Carb 설정을 통해 주 모니터의 해상도 정보를 가져옵니다.
+settings = carb.settings.get_settings()
+screen_width = settings.get_as_int("/app/window/width")
+screen_height = settings.get_as_int("/app/window/height")
+# 기본적으로 Isaac Sim은 주 모니터의 크기를 사용합니다.
+
+# 만약 설정값이 없다면, 임시 기본값 사용 (일반적인 Full HD)
+if screen_width == 0:
+    screen_width = 1920
+if screen_height == 0:
+    screen_height = 1080
+
+# 원하는 창의 크기 설정
+WINDOW_WIDTH = 350
+WINDOW_HEIGHT = 250
+
+# 왼쪽 아래 위치 계산
+# X 위치: 화면 왼쪽 끝 (0) 또는 약간의 여백 (예: 10픽셀)
+pos_x = 10 
+# Y 위치: 화면 높이 - 창 높이 - 약간의 여백
+pos_y = screen_height - WINDOW_HEIGHT - 40 # 40은 하단 Omniverse Bar와 Windows 작업 표시줄 등을 고려한 여백
+
+# 윈도우 생성 함수 정의 및 위치 지정
+def create_info_window():
+    # 윈도우 이름과 크기 설정
+    window_title = "Info Panel"
+    # carb.get_framework().get_settings()를 사용하여 윈도우 크기 등의 설정을 가져올 수도 있습니다.
+    
+    # ui.Window 생성, position_x와 position_y 지정
+    my_window = ui.Window(
+        title=window_title,
+        width=WINDOW_WIDTH,    # 가로 350
+        height=WINDOW_HEIGHT,  # 세로 250
+        position_x=pos_x,      # X 좌표 지정
+        position_y=pos_y,      # Y 좌표 지정
+        allow_docking=True     # 도킹을 허용하지만, 초기 위치는 지정된 곳
+    )
+
+    # 윈도우 내부 UI 구성
+    with my_window.frame:
+        with ui.VStack(spacing=5, alignment=ui.Alignment.CENTER): # 헤더 텍스트
+            ui.Label("Robot Status", height=20, alignment=ui.Alignment.CENTER, style={"font_size": 18})
+            ui.Spacer(height=10) # 5 또는 10
+            ui.Label(f"Screen Height: {screen_height}")
+            ui.Label(f"Calculated Y Pos: {pos_y}")
+
+            # 정보 표시 (이 Label의 값을 업데이트하여 정보를 갱신합니다)
+            info_label = ui.Label(
+                "Position: X=0.0, Y=0.0, Z=0.0", 
+                height=20,
+                # 텍스트가 왼쪽 정렬되도록 설정
+                alignment=ui.Alignment.LEFT_CENTER
+            )
+            
+            # 버튼 추가
+            ; def on_button_click():
+            ;     carb.log_info("Button Clicked! Updating status...")
+            ;     # 예시: 버튼 클릭 시 정보 업데이트
+            ;     info_label.text = "Position: X=1.5, Y=2.2, Z=0.1 (UPDATED)"
+            ; ui.Button("Update Info", clicked_fn=on_button_click)
+
+    # 생성된 윈도우 객체 반환 (나중에 닫거나 제어하기 위해)
+    return my_window
+
+# 윈도우 생성 및 저장 (스크립트 에디터에서 실행)
+if 'info_window' in globals():
+    info_window.destroy()
+
+info_window = create_info_window()
+print(f"'{info_window.title}' Window created at ({pos_x}, {pos_y}).")
