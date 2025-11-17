@@ -1,24 +1,52 @@
-# script editor
-from isaacsim import SimulationApp
+import omni.ui as ui
+import carb
 
-# 윈도우 창을 띄우기 위해 headless=False 설정
-simulation_app = SimulationApp({"headless": False})
+# 1. 윈도우 생성 함수 정의
+def create_info_window():
+    # 윈도우 이름과 크기 설정
+    window_title = "My Custom Info"
+    
+    # carb.get_framework().get_settings()를 사용하여 윈도우 크기 등의 설정을 가져올 수도 있습니다.
+    
+    # ui.Window 생성
+    my_window = ui.Window(
+        title=window_title,
+        width=300, 
+        height=200,
+        # Docking 가능하도록 설정
+        allow_docking=True 
+    )
 
-# ... 시뮬레이션 코드 ...
+    # 윈도우 내부 UI 구성
+    with my_window.frame:
+        with ui.VStack(spacing=5):
+            # 헤더 텍스트
+            ui.Label("🤖 Robot Status", height=20, alignment=ui.Alignment.CENTER, style={"font_size": 18})
+            ui.Spacer(height=5)
+            
+            # 정보 표시 (이 Label의 값을 업데이트하여 정보를 갱신합니다)
+            info_label = ui.Label(
+                "Position: X=0.0, Y=0.0, Z=0.0", 
+                height=20,
+                # 텍스트가 왼쪽 정렬되도록 설정
+                alignment=ui.Alignment.LEFT_CENTER
+            )
+            
+            # 버튼 추가
+            def on_button_click():
+                carb.log_info("Button Clicked! Updating status...")
+                # 예시: 버튼 클릭 시 정보 업데이트
+                info_label.text = "Position: X=1.5, Y=2.2, Z=0.1 (UPDATED)"
+                
+            ui.Button("Update Info", clicked_fn=on_button_click)
 
-# 애플리케이션 종료 시
-simulation_app.close()
+    # 생성된 윈도우 객체 반환 (나중에 닫거나 제어하기 위해)
+    return my_window
 
+# 2. 윈도우 생성 및 저장 (스크립트 에디터에서 실행)
+if 'info_window' in globals():
+    # 이전에 생성된 윈도우가 있다면 닫고 다시 만듭니다 (선택 사항)
+    info_window.destroy()
 
-
-
-#이건어디에?
-import omni.kit.viewport.utility as vu
-
-# 새로운 뷰포트 창을 생성하는 예시 (더 복잡한 API 사용)
-# 이 코드는 Isaac Sim 버전에 따라 다를 수 있으며, 뷰포트를 관리하는 확장 기능이 활성화되어 있어야 합니다.
-
-# viewport_api = vu.get_default_viewport_window() 
-# 또는
-# from omni.kit.viewport.utility import create_viewport_window
-# create_viewport_window(name="New Viewport", width=800, height=600)
+info_window = create_info_window()
+print(f"'{info_window.title}' Window created.")
