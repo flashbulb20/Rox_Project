@@ -29,8 +29,8 @@ class DetailedInfoPanel:
             title="Info Window", 
             width=400, 
             height=250, 
-            position_x= 10,                       # X 좌표 지정
-            position_y= screen_height - height/2, # Y 좌표 지정
+            position_x= 10,                    # X 좌표 지정
+            position_y= screen_height - 250/2, # Y 좌표 지정
             allow_docking=True)
         
         # UI 위젯 초기화 및 레이아웃 설정
@@ -46,7 +46,7 @@ class DetailedInfoPanel:
                 ui.Separator()
                 
                 # 데이터 표시 라벨 (VStack 안에 Grid를 사용하여 깔끔하게 정렬)
-                with ui.Grid(column_count=2, spacing=5):
+                with ui.Grid(column_count=2, spacing=5):#이부분문제
                     # Time
                     ui.Label("Time:", alignment=ui.Alignment.RIGHT)
                     self.time_label = ui.Label("--", alignment=ui.Alignment.LEFT)
@@ -70,6 +70,40 @@ class DetailedInfoPanel:
                     ui.Label("R/G/B Count:", alignment=ui.Alignment.RIGHT)
                     self.rgb_count_label = ui.Label("R:0 / G:0 / B:0", alignment=ui.Alignment.LEFT)
 
+
+                # 데이터 표시 라벨 (Grid를 Frame으로 대체하고, GridLayout을 사용)
+                # ui.Grid(column_count=2, spacing=5) 대신 아래 코드를 사용해보세요.
+
+                with ui.Frame(height=0): # Frame을 사용하여 컨테이너 역할
+                    # Grid Layout 설정
+                    with ui.HStack(spacing=5): # 수평 스택을 사용하여 묶음
+                        # Grid는 LayoutFunction으로 대체될 수 있습니다.
+                        ui.Label("Time:", width=150, alignment=ui.Alignment.RIGHT) # 너비 지정하여 열 맞춤
+                        self.time_label = ui.Label("--", width=150, alignment=ui.Alignment.LEFT)
+
+                    with ui.HStack(spacing=5):
+                        # Detected Color
+                        ui.Label("Color:", width=150, alignment=ui.Alignment.RIGHT)
+                        self.color_label = ui.Label("--", width=150, alignment=ui.Alignment.LEFT)
+                        
+                    with ui.HStack(spacing=5):
+                        # Classification ID
+                        ui.Label("Class ID:", width=150, alignment=ui.Alignment.RIGHT)
+                        self.id_label = ui.Label("--", width=150, alignment=ui.Alignment.LEFT)
+
+                ui.Separator()
+
+                # Count 정보 표시 부분도 HStack으로 대체
+                with ui.Frame(height=0):
+                    with ui.HStack(spacing=5):
+                        ui.Label("Total Processed:", width=150, alignment=ui.Alignment.RIGHT)
+                        self.total_count_label = ui.Label("0", width=150, alignment=ui.Alignment.LEFT)
+                        
+                    with ui.HStack(spacing=5):
+                        # Individual Counts
+                        ui.Label("R/G/B Count:", width=150, alignment=ui.Alignment.RIGHT)
+                        self.rgb_count_label = ui.Label("R:0 / G:0 / B:0", width=150, alignment=ui.Alignment.LEFT)
+
         # 타임라인 및 업데이트 구독 설정
         self.timeline = omni.timeline.get_timeline_interface()
         self.subscription = omni.kit.app.get_app().get_update_event_stream().create_subscription_to_pop(
@@ -82,7 +116,7 @@ class DetailedInfoPanel:
 
     # 2. UI 위젯 업데이트 함수
     def update_ui_elements(self):
-        """데이터(self.data)를 기반으로 모든 UI 위젯을 업데이트합니다."""
+        # 데이터(self.data)를 기반으로 모든 UI 위젯을 업데이트합니다.
         
         # 상태 라벨 업데이트
         is_playing = self.timeline.is_playing()
@@ -129,7 +163,7 @@ class DetailedInfoPanel:
 
     # 3. 시뮬레이션 프레임 업데이트 콜백 함수
     def on_update(self, event):
-        """매 시뮬레이션 프레임마다 호출됩니다."""
+        #매 시뮬레이션 프레임마다 호출됩니다.
         
         # 시뮬레이션이 재생 중일 때만 데이터 업데이트 로직 실행
         if self.timeline.is_playing():
@@ -145,7 +179,7 @@ class DetailedInfoPanel:
 
     # 4. (예시) 더미 감지 로직 - 실제 시뮬레이션 데이터로 대체 필요
     def simulate_detection_logic(self):
-        """이 함수는 실제 센서 데이터 읽기, 색상 분석, 객체 분류 코드로 대체되어야 합니다."""
+        # 이 함수는 실제 센서 데이터 읽기, 색상 분석, 객체 분류 코드로 대체되어야 합니다.
         
         frame = int(self.data["current_time"] * 60) # 초당 60프레임 가정
         
