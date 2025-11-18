@@ -3,17 +3,20 @@ import sys
 import random 
 import omni
 
+# from isaacsim.core.api import XFormPrim
 from isaacsim.examples.interactive.base_sample import BaseSample
 import omni.isaac.core.utils.prims as prim_uils
 from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.storage.native import get_assets_root_path
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
 from isaacsim.robot.manipulators import SingleManipulator
-from isaacsim.core.api.objects import DynamicCuboid
-
+from isaacsim.core.api.objects import DynamicCuboid, DynamicCylinder
+import isaacsim.core.utils.numpy.rotations as rot_utils
 import isaacsim.robot_motion.motion_generation as mg
 from isaacsim.core.utils.rotations import euler_angles_to_quat
 from isaacsim.core.prims import SingleArticulation
+from isaacsim.sensors.physx import _range_sensor
+from isaacsim.sensors.camera import Camera
 # from sensors import SensorSystem
 
 
@@ -64,29 +67,25 @@ class RoxProject(BaseSample):
             np.array([0.0, 0.0, 1.0]),  
         ]
 
-        self._random_cube_spawn_position = np.array([-1.5, 0.0, 1.5])
-        self._random_cube_position = self._random_cube_spawn_position.copy()
+        self.robot_position = np.array([7.25, 0.0, 0.3])
 
-        self.robot_position = np.array([7.5, 0.0, 0.0])
+        ############## 도착 컨베이어 좌표 ################################
+        
+        self.place_pos_left = np.array([7.2, 0.7, 0.4])
+        self.place_pos_center = np.array([8.0, 0.0, 0.4])
+        self.place_pos_right = np.array([7.2, -0.7, 0.4])
+        self.place_pos_default = np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0])
 
-
-        self.place_base_position = np.array([0.7, 0.6, 0.25])
-
-        self._cube_height = 0.05
-        self._stack_level = 0  
-
+        ###############################################################
         self.task_phase = 1
         self._wait_counter = 0
-        
-        self._cube_spawn_interval = 3.0
-        self._cube_spawn_timer = 0.0
-
         self._cube_index = 0
         self.cube = None
         self.cube_name = ""
-
+        self.cube_spawn = np.array([-1.63, 0.0, 2])
         self.cube_prim = "/World/Trash_Random"
 
+        self.val = 3
         return
 
     def setup_scene(self):
@@ -94,7 +93,7 @@ class RoxProject(BaseSample):
         
         ################################ World 객체 구현 ############################################
 
-        self.background_usd = "/home/rokey/Desktop/Rox/env/background.usd"
+        self.background_usd = "/home/rokey/Downloads/background.usd"
         add_reference_to_stage(usd_path=self.background_usd, prim_path="/World/Background")
 
         world.scene.add_default_ground_plane()
@@ -108,6 +107,10 @@ class RoxProject(BaseSample):
         robot = add_reference_to_stage(usd_path=asset_path, prim_path="/World/UR10")
         robot.GetVariantSet("Gripper").SetVariantSelection("Short_Suction")
 
+        # 로봇 스케일 변화    
+        # ur10 = XFormPrim("/World/UR10")
+        # ur10.set_local_scale(np.array([x, y, z]))
+
         gripper = SurfaceGripper(
             end_effector_prim_path="/World/UR10/ee_link", surface_gripper_path="/World/UR10/ee_link/SurfaceGripper"
         )
@@ -120,13 +123,12 @@ class RoxProject(BaseSample):
         ur10.set_joints_default_state(
             positions=np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0])
         )
-
         world.scene.add(
             DynamicCuboid(
                 prim_path=self.cube_prim,
                 name="random_cube_0",
-                position=self._random_cube_spawn_position,
-                scale=np.array([0.2, 0.2, 0.2]),
+                position=self.cube_spawn,
+                scale=np.array([0.15, 0.15, 0.15]),
                 color=random.choice(self.colors),
             )
         )
@@ -156,160 +158,131 @@ class RoxProject(BaseSample):
         return
     
 
-    # def _get_current_place_position(self):
-    #     place_pos = self.place_base_position.copy()
-    #     place_pos[2] = self.place_base_position[2] + self._stack_level * self._cube_height
-    #     return place_pos
-
-    # def _spawn_new_cube(self):
-    #     self._cube_index += 1
-    #     self.cube_name = f"random_cube_{self._cube_index}"
-    #     prim_path = f"/World/RandomCube_{self._cube_index}"
-
-    #     cube_color = random.choice(self.colors)
-
-    #     self.cube = self._world.scene.add(
-    #         DynamicCuboid(
-    #             prim_path=prim_path,
-    #             name=self.cube_name,
-    #             position=self._random_cube_spawn_position,
-    #             scale=np.array([0.1, 0.1, 0.1]),
-    #             color=cube_color,
-    #         )
-    #     )
-    #     self._random_cube_position = self._random_cube_spawn_position.copy()
-    #     print(f"Spawned new cube: {self.cube_name} color={cube_color} at {self._random_cube_spawn_position}")
-
     def physics_step(self, step_size):
         # phase 1: 
         if self.task_phase == 1:
             cube_position, cube_orientation = self.cube.get_world_pose()
             current_x_position = cube_position[0]
-            if current_x_position >= -0.09:
+            if current_x_position >= 5.0:
                 print(f"Cube X ({current_x_position}) reached target range (>= -0.09).")
                 self.task_phase = 2
 
-        # # phase 2: 살짝 대기한 뒤 큐브 현재 위치 저장
-        # elif self.task_phase == 2:
-        #     if self._wait_counter < 10:
-        #         self._wait_counter += 1
-        #     else:
-        #         self._random_cube_position, _ = self.cube.get_world_pose()
-        #         self._wait_counter = 0
-        #         self.task_phase = 3
+        # phase 2: 살짝 대기한 뒤 큐브 현재 위치 저장
+        elif self.task_phase == 2:
+            if self._wait_counter < 100:
+                self._wait_counter += 1
+            else:
+                self._random_cube_position, _ = self.cube.get_world_pose()
+                self._wait_counter = 0
+                self.task_phase = 3
 
-    #     # phase 3: 큐브 위로 이동 (상승)
-    #     elif self.task_phase == 3:
-    #         _target_position = self._random_cube_position.copy() - self.robot_position
-    #         _target_position[2] = 0.4  # 위에서 접근
+        # phase 3: 큐브 위로 이동 (상승)
+        elif self.task_phase == 3:
+            _target_position = self._random_cube_position.copy() - self.robot_position
+            _target_position[2] = 0.4  # 위에서 접근
 
-    #         end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
-    #         action = self.cspace_controller.forward(
-    #             target_end_effector_position=_target_position,
-    #             target_end_effector_orientation=end_effector_orientation,
-    #         )
-    #         self.robots.apply_action(action)
-    #         current_joint_positions = self.robots.get_joint_positions()
+            end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
+            action = self.cspace_controller.forward(
+                target_end_effector_position=_target_position,
+                target_end_effector_orientation=end_effector_orientation,
+            )
+            self.robots.apply_action(action)
+            current_joint_positions = self.robots.get_joint_positions()
 
-    #         if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
-    #             self.cspace_controller.reset()
-    #             self.task_phase = 4
+            if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                self.cspace_controller.reset()
+                self.task_phase = 4
 
-    #     # phase 4: 큐브까지 내려가기
-    #     elif self.task_phase == 4:
-    #         _target_position = self._random_cube_position.copy() - self.robot_position
-    #         _target_position[2] = 0.2  # 큐브 가까이
+        # phase 4: 큐브까지 내려가기
+        elif self.task_phase == 4:
+            _target_position = self._random_cube_position.copy() - self.robot_position
+            _target_position[2] = 0.15  # 큐브 가까이
 
-    #         end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
-    #         action = self.cspace_controller.forward(
-    #             target_end_effector_position=_target_position,
-    #             target_end_effector_orientation=end_effector_orientation,
-    #         )
-    #         self.robots.apply_action(action)
-    #         current_joint_positions = self.robots.get_joint_positions()
+            end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
+            action = self.cspace_controller.forward(
+                target_end_effector_position=_target_position,
+                target_end_effector_orientation=end_effector_orientation,
+            )
+            self.robots.apply_action(action)
+            current_joint_positions = self.robots.get_joint_positions()
 
-    #         if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
-    #             self.cspace_controller.reset()
-    #             self.task_phase = 5
+            if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                self.cspace_controller.reset()
+                self.task_phase = 5
 
-    #     # phase 5: 그리퍼 닫아서 큐브 집기
-    #     elif self.task_phase == 5:
-    #         self.robots.gripper.close()
-    #         self.task_phase = 6
+        # phase 5: 그리퍼 닫아서 큐브 집기
+        elif self.task_phase == 5:
+            self.robots.gripper.close()
+            self.task_phase = 6
 
-    #     # phase 6: 큐브 들고 위로 다시 올리기
-    #     elif self.task_phase == 6:
-    #         _target_position = self._random_cube_position.copy() - self.robot_position
-    #         _target_position[2] = 0.4
+########################################################################################################
 
-    #         end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
-    #         action = self.cspace_controller.forward(
-    #             target_end_effector_position=_target_position,
-    #             target_end_effector_orientation=end_effector_orientation,
-    #         )
-    #         self.robots.apply_action(action)
+        # phase 6: 큐브 들고 위로 다시 올리기
+        elif self.task_phase == 6:
+            _target_position = self._random_cube_position.copy() - self.robot_position
+            _target_position[2] = 0.4
 
-    #         current_joint_positions = self.robots.get_joint_positions()
+            end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
+            action = self.cspace_controller.forward(
+                target_end_effector_position=_target_position,
+                target_end_effector_orientation=end_effector_orientation,
+            )
+            self.robots.apply_action(action)
 
-    #         if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
-    #             self.cspace_controller.reset()
-    #             self.task_phase = 7
+            current_joint_positions = self.robots.get_joint_positions()
 
-    #     # phase 7: 판(plate) 위 목표 위치로 이동 (현재 스택 레벨에 맞게)
-    #     elif self.task_phase == 7:
-    #         place_pos = self._get_current_place_position()
-    #         _target_position = place_pos - self.robot_position
+            if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                self.cspace_controller.reset()
+                self.task_phase = 7
 
-    #         end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
-    #         action = self.cspace_controller.forward(
-    #             target_end_effector_position=_target_position,
-    #             target_end_effector_orientation=end_effector_orientation,
-    #         )
-    #         self.robots.apply_action(action)
+        # phase 7: 판(plate) 위 목표 위치로 이동 (현재 스택 레벨에 맞게)
+        elif self.task_phase == 7:
+            if self.val == 1 : # right
+                _target_position = self.place_pos_right - self.robot_position 
+                end_effector_orientation = euler_angles_to_quat(np.array([ - np.pi / 2 , np.pi/2, 0.0]))
 
-    #         current_joint_positions = self.robots.get_joint_positions()
+            elif self.val == 2: # left
+                _target_position = self.place_pos_left - self.robot_position
+                end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
 
-    #         if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
-    #             self.cspace_controller.reset()
-    #             self.task_phase = 8
+            elif self.val == 3 : # center
+                _target_position = self.place_pos_center - self.robot_position
+                end_effector_orientation = euler_angles_to_quat(np.array([ np.pi / 2, np.pi / 2, 0]))
 
-    #     # phase 8: 그리퍼 열어서 판 위에 큐브 내려놓기
-    #     elif self.task_phase == 8:
-    #         self.robots.gripper.open()
-    #         self.task_phase = 9
+            action = self.cspace_controller.forward(
+                target_end_effector_position=_target_position,
+                target_end_effector_orientation=end_effector_orientation,
+            )
+            self.robots.apply_action(action)
 
-    #     # phase 9: 로봇 팔을 위로 살짝 빼주고 (리셋 포즈로) + 스택 레벨 증가
-    #     elif self.task_phase == 9:
-    #         place_pos = self._get_current_place_position()
-    #         _target_position = place_pos - self.robot_position
-    #         _target_position[2] = place_pos[2] + 0.25  # 해당 스택에서 조금 더 위로
+            current_joint_positions = self.robots.get_joint_positions()
 
-    #         end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
-    #         action = self.cspace_controller.forward(
-    #             target_end_effector_position=_target_position,
-    #             target_end_effector_orientation=end_effector_orientation,
-    #         )
-    #         self.robots.apply_action(action)
+            if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                self.cspace_controller.reset()
+                self.task_phase = 8
 
-    #         current_joint_positions = self.robots.get_joint_positions()
+        # phase 8: 그리퍼 열어서 판 위에 큐브 내려놓기
+        elif self.task_phase == 8:
+            self.robots.gripper.open()
+            self.task_phase = 9
 
-    #         if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
-    #             self.cspace_controller.reset()
-    #             self._wait_counter = 0
-    #             self._cube_spawn_timer = 0.0
+        # phase 9: 로봇 팔을 위로 살짝 빼주고 (리셋 포즈로) + 스택 레벨 증가
+        elif self.task_phase == 9:
+            _target_position = np.array([0.18, 0.7, 0.5])
+        
 
-    #             self._stack_level += 1
+            end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2 ,0.0]))
+            action = self.cspace_controller.forward(
+                target_end_effector_position=_target_position,
+                target_end_effector_orientation=end_effector_orientation,
+            )
+            self.robots.apply_action(action)
 
-    #             self.task_phase = 10
+            current_joint_positions = self.robots.get_joint_positions()
 
-    #     # phase 10: 일정 시간 기다렸다가 "새로운" 큐브를 컨베이어 시작 위치에 생성
-    #     elif self.task_phase == 10:
-    #         self._cube_spawn_timer += step_size
+            if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                self.cspace_controller.reset()
+                self._wait_counter = 0
+                self.task_phase = 10
 
-    #         if self._cube_spawn_timer >= self._cube_spawn_interval:
-    #             self._spawn_new_cube()
-
-    #             self._cube_spawn_timer = 0.0
-    #             self.task_phase = 1
-
-    #     return
+        return
