@@ -3,7 +3,6 @@ import sys
 import random 
 import omni
 
-# from isaacsim.core.api import XFormPrim
 from isaacsim.examples.interactive.base_sample import BaseSample
 import omni.isaac.core.utils.prims as prim_uils
 from isaacsim.core.utils.stage import add_reference_to_stage
@@ -17,6 +16,8 @@ from isaacsim.core.utils.rotations import euler_angles_to_quat
 from isaacsim.core.prims import SingleArticulation
 from isaacsim.sensors.physx import _range_sensor
 from isaacsim.sensors.camera import Camera
+from isaacsim.core.api import World
+from pxr import Gf,UsdGeom
 # from sensors import SensorSystem
 
 
@@ -56,7 +57,6 @@ class RMPFlowController(mg.MotionPolicyController):
             robot_position=self._default_position, robot_orientation=self._default_orientation
         )
 
-
 class RoxProject(BaseSample):
     def __init__(self) -> None:
         super().__init__()
@@ -69,14 +69,13 @@ class RoxProject(BaseSample):
 
         self.robot_position = np.array([7.25, 0.0, 0.3])
 
-        ############## 도착 컨베이어 좌표 ################################
+        ### 도착 컨베이어 좌표 ###
         
         self.place_pos_left = np.array([7.2, 0.7, 0.4])
         self.place_pos_center = np.array([8.0, 0.0, 0.4])
         self.place_pos_right = np.array([7.2, -0.7, 0.4])
         self.place_pos_default = np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0])
 
-        ###############################################################
         self.task_phase = 1
         self._wait_counter = 0
         self._cube_index = 0
@@ -85,14 +84,76 @@ class RoxProject(BaseSample):
         self.cube_spawn = np.array([-1.63, 0.0, 2])
         self.cube_prim = "/World/Trash_Random"
 
-        self.val = 3
+
+        ### sensor init 부분 ###
+        self.timeline = omni.timeline.get_timeline_interface()
+        self.lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
+
+        ### sensor spawn 위치 ###
+        self.cam_body_pos = np.array([6.3, 1.55, 0.55])
+        self.lidar_body_pos = np.array([6.8, 0.0, 0.175])
+
+        self.val = 2 # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
         return
+
+
 
     def setup_scene(self):
         world = self.get_world()
-        
-        ################################ World 객체 구현 ############################################
+        # self.sensor = SensorSystem()
 
+        #### sensor 구현 ###
+        self.cam_body = world.scene.add(
+            DynamicCylinder(
+                prim_path="/World/cam_body",
+                name="cam_body",    
+                position=self.cam_body_pos,
+                scale=np.array([0.1, 0.1, 0.1]),
+            )
+        )
+        self.camera = Camera(
+            prim_path="/World/cam_body/camera",
+            frequency=30 ,
+            resolution=(100, 100),
+            orientation=rot_utils.euler_angles_to_quats(
+                np.array([0.0, -5.0, 270.0]),
+                degrees=True
+            )
+        )
+        self.lidar_body = world.scene.add(
+            DynamicCylinder(
+                prim_path = "/World/lidar_sensor",
+                name = "lidar_sensor",
+                position = self.lidar_body_pos,
+                scale = np.array([0.05, 0.05, 0.35])
+
+            )
+        )
+
+        result, prim = omni.kit.commands.execute(
+            "RangeSensorCreateLidar",
+            path="/Lidar",
+            parent="/World/lidar_sensor",
+            min_range=0.1,
+            max_range=0.5,
+            draw_points=False,
+            draw_lines=True,
+            horizontal_fov=1.0,
+            vertical_fov=1.0,
+            horizontal_resolution=0.5,
+            vertical_resolution=0.5,
+            rotation_rate=100,
+            high_lod=True,
+            yaw_offset= 0.0,
+            enable_semantics=False,
+        )
+        stage = omni.usd.get_context().get_stage()
+        prim_lidar = stage.GetPrimAtPath("/World/lidar_sensor/Lidar")
+        xform = UsdGeom.XformCommonAPI(prim_lidar)
+        xform.SetTranslate(Gf.Vec3f(1, 2, 3))
+
+
+        ### ur10 로봇 부분 ###
         self.background_usd = "/home/rokey/Downloads/background.usd"
         add_reference_to_stage(usd_path=self.background_usd, prim_path="/World/Background")
 
@@ -132,13 +193,11 @@ class RoxProject(BaseSample):
                 color=random.choice(self.colors),
             )
         )
-
-        ###########################################################################################
         return
-
     async def setup_post_load(self):
         self._world = self.get_world()
-
+        self.camera.initialize()
+        self.camera.add_motion_vectors_to_frame()
         # 첫 번째 큐브 레퍼런스
         self.cube_name = f"random_cube_{self._cube_index}"
         self.cube = self._world.scene.get_object(self.cube_name)
@@ -150,7 +209,6 @@ class RoxProject(BaseSample):
         self.robots.set_world_pose(
             position = self.robot_position
         )
-
         # 물리 콜백 등록
         self._world.add_physics_callback("sim_step", callback_fn=self.physics_step)
         await self._world.play_async()
@@ -241,11 +299,11 @@ class RoxProject(BaseSample):
                 _target_position = self.place_pos_right - self.robot_position 
                 end_effector_orientation = euler_angles_to_quat(np.array([ - np.pi / 2 , np.pi/2, 0.0]))
 
-            elif self.val == 2: # left
+            elif self.val == 3: # left
                 _target_position = self.place_pos_left - self.robot_position
                 end_effector_orientation = euler_angles_to_quat(np.array([0.0, np.pi / 2, 0.0]))
 
-            elif self.val == 3 : # center
+            elif self.val == 2 : # center
                 _target_position = self.place_pos_center - self.robot_position
                 end_effector_orientation = euler_angles_to_quat(np.array([ np.pi / 2, np.pi / 2, 0]))
 
