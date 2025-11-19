@@ -92,6 +92,7 @@ class RoxProject(BaseSample):
         ### sensor spawn 위치 ###
         self.cam_body_pos = np.array([6.3, 1.55, 0.55])
         self.lidar_body_pos = np.array([6.8, 0.0, 0.175])
+        self.lidar_sensor_pos = np.array([6.8, 0.0, 0.365])
 
         self.val = 2 # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
         return
@@ -122,10 +123,20 @@ class RoxProject(BaseSample):
         )
         self.lidar_body = world.scene.add(
             DynamicCylinder(
-                prim_path = "/World/lidar_sensor",
-                name = "lidar_sensor",
+                prim_path = "/World/lidar_body",
+                name = "lidar_body",
                 position = self.lidar_body_pos,
                 scale = np.array([0.05, 0.05, 0.35])
+
+            )
+        )
+
+        self.lidar = world.scene.add(
+            DynamicCylinder(
+                prim_path = "/World/lidar_sensor",
+                name = "lidar_sensor",
+                position = self.lidar_sensor_pos,
+                scale = np.array([0.03, 0.03, 0.03])
 
             )
         )
@@ -135,7 +146,7 @@ class RoxProject(BaseSample):
             path="/Lidar",
             parent="/World/lidar_sensor",
             min_range=0.1,
-            max_range=0.5,
+            max_range=0.8,
             draw_points=False,
             draw_lines=True,
             horizontal_fov=1.0,
@@ -147,11 +158,7 @@ class RoxProject(BaseSample):
             yaw_offset= 0.0,
             enable_semantics=False,
         )
-        stage = omni.usd.get_context().get_stage()
-        prim_lidar = stage.GetPrimAtPath("/World/lidar_sensor/Lidar")
-        xform = UsdGeom.XformCommonAPI(prim_lidar)
-        xform.SetTranslate(Gf.Vec3f(1, 2, 3))
-
+        self.lidar_path = prim.GetPath().pathString
 
         ### ur10 로봇 부분 ###
         self.background_usd = "/home/rokey/Downloads/background.usd"
@@ -216,6 +223,17 @@ class RoxProject(BaseSample):
         return
     
 
+    def get_lidar_depth(self):
+        """LiDAR로부터 최소 깊이값 추출"""
+        depth = self.lidar_interface.get_linear_depth_data(self.lidar_path)
+        depth = np.array(depth, dtype=np.float32)
+        self.valid = depth[np.isfinite(depth) & (depth > 0)]
+
+        if self.valid.size > 0:
+            return float(self.valid.min())
+        return None
+    
+
     def physics_step(self, step_size):
         # phase 1: 
         if self.task_phase == 1:
@@ -272,8 +290,6 @@ class RoxProject(BaseSample):
         elif self.task_phase == 5:
             self.robots.gripper.close()
             self.task_phase = 6
-
-########################################################################################################
 
         # phase 6: 큐브 들고 위로 다시 올리기
         elif self.task_phase == 6:
