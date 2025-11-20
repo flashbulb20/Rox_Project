@@ -100,6 +100,11 @@ class RoxProject(BaseSample):
         self.place_cart_3 = np.array([11.3, 0.0, 0.7])
         self.place_cart_4 = np.array([11.3, 2.2, 0.7])
 
+        # 2번 공정 초기화 로봇 pose
+        self.place_init_2 = np.array([10.7, -2.6, 0.5])
+        self.place_init_3 = np.array([10.7, -0.4, 0.5])
+        self.place_init_4 = np.array([10.7, 1.8, 0.5])
+
         self.task_phase = 1
         self._wait_counter = 0
         self._cube_index = 0
@@ -117,7 +122,7 @@ class RoxProject(BaseSample):
         self.lidar_body_pos = np.array([6.8, 0.0, 0.175])
         self.lidar_sensor_pos = np.array([6.8, 0.0, 0.365])
 
-        self.val = 3  # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
+        self.val = 1  # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
 
         # UR10_2,3,4 전용 FSM 상태 저장용 ---
         self.extra_robot_tasks = {}   # 나중에 setup_post_load에서 채움
@@ -591,9 +596,12 @@ class RoxProject(BaseSample):
 
         # ----- phase 9: 살짝 위로 빼고 종료 -----
         elif phase == 9:
-            place_pos = task["place_pos"]
-            _target_position = place_pos
-            _target_position[2] = place_pos[2] + 0.25
+            if self.val == 1 : 
+                _target_position = self.place_init_2
+            elif self.val == 2 :
+                _target_position = self.place_init_3
+            elif self.val == 3 :
+                _target_position = self.place_init_4
 
             end_effector_orientation = euler_angles_to_quat(
                 np.array([0.0, np.pi / 2, 0.0])
