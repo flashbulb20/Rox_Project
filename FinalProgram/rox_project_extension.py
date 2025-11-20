@@ -50,3 +50,5 @@ class RoxProject_Extension(omni.ext.IExt):
         get_browser_instance().deregister_example(name=self.example_name, category=self.category)
 
         return
+    
+

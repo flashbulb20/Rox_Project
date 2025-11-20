@@ -76,7 +76,7 @@ class RoxProject(BaseSample):
         self.place_pos_right = np.array([7.2, -0.7, 0.4])
         self.place_pos_default = np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0])
 
-        self.task_phase = 1
+        self.task_phase = 0
         self._wait_counter = 0
         self._cube_index = 0
         self.cube = None
@@ -94,7 +94,9 @@ class RoxProject(BaseSample):
         self.lidar_body_pos = np.array([6.8, 0.0, 0.175])
         self.lidar_sensor_pos = np.array([6.8, 0.0, 0.365])
 
-        self.val = 2 # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
+        self.val = 0 # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
+        self.depth = 0
+        self.cam_color = None
         return
 
 
@@ -219,9 +221,24 @@ class RoxProject(BaseSample):
         # 물리 콜백 등록
         self._world.add_physics_callback("sim_step", callback_fn=self.physics_step)
         await self._world.play_async()
-        self.task_phase = 1
+        self.task_phase = 0
         return
     
+
+    def get_camera_color(self):
+        """카메라 중앙 픽셀의 색상 반환"""
+        cam_pixel = self.camera.get_rgb()
+        cam_rgb = cam_pixel[49:52, 49:52]
+        total_rgb = cam_rgb.sum(axis=1)
+        _total_rgb = total_rgb.sum(axis=0)
+
+        if _total_rgb[0] > _total_rgb[1] and _total_rgb[0] > _total_rgb[2]:
+            return "빨간색"
+        elif _total_rgb[1] > _total_rgb[0] and _total_rgb[1] > _total_rgb[2]:
+            return "초록색"
+        else:
+            return "파란색"
+
 
     def get_lidar_depth(self):
         """LiDAR로부터 최소 깊이값 추출"""
@@ -235,15 +252,34 @@ class RoxProject(BaseSample):
     
 
     def physics_step(self, step_size):
-        # phase 1: 
-        if self.task_phase == 1:
+        # phase 1: 초음파 센서 판자 위 객체 확인
+        if self.task_phase == 0 : 
+            value = self.get_lidar_depth()
+            if value < 0.43 :
+                self.task_phase = 1
+
+        # phase 2: 카메라 RGB 확인 후 분류 라벨정하기
+        elif self.task_phase == 1:
             cube_position, cube_orientation = self.cube.get_world_pose()
             current_x_position = cube_position[0]
-            if current_x_position >= 5.0:
-                print(f"Cube X ({current_x_position}) reached target range (>= -0.09).")
-                self.task_phase = 2
+            self.cam_color = self.get_camera_color()
+            
+            if self.cam_color == "빨간색":
+                self.val = 1
+            elif self.cam_color == "초록색":
+                self.val = 2
+            elif self.cam_color == "파란색":
+                self.val = 3
+            
+            print(self.cam_color)
+            print(self.val)
+            self.task_phase = 2
+        # elif self.task_phase == 1:
+        #     cube_position, cube_orientation = self.cube.get_world_pose()
+        #     current_x_position = cube_position[0]
+        #     if current_x_position >= 5.0:
+        #         self.task_phase = 2
 
-        # phase 2: 살짝 대기한 뒤 큐브 현재 위치 저장
         elif self.task_phase == 2:
             if self._wait_counter < 100:
                 self._wait_counter += 1
