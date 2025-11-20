@@ -1,10 +1,16 @@
 import numpy as np
 import sys
-import random 
+import random
 import omni
-
+import omni.ext
+import omni.ui as ui
+import omni.timeline
+import omni.kit.app
+import carb
+import os
+from typing import Dict
 from isaacsim.examples.interactive.base_sample import BaseSample
-import omni.isaac.core.utils.prims as prim_uils
+import omni.isaac.core.utils.prims as prim_utils
 from isaacsim.core.utils.stage import add_reference_to_stage
 from isaacsim.storage.native import get_assets_root_path
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
@@ -17,9 +23,10 @@ from isaacsim.core.prims import SingleArticulation
 from isaacsim.sensors.physx import _range_sensor
 from isaacsim.sensors.camera import Camera
 from isaacsim.core.api import World
-from pxr import Gf,UsdGeom
-# from sensors import SensorSystem
+from pxr import Gf, UsdGeom
 
+#데이터 저장용 로그경로
+LOG_PATH = "/home/rokey/isaacsim/exts/my_custom_info_display/logs/rox_data.txt" 
 
 class RMPFlowController(mg.MotionPolicyController):
 
@@ -39,7 +46,9 @@ class RMPFlowController(mg.MotionPolicyController):
             self.rmp_flow_config = mg.interface_config_loader.load_supported_motion_policy_config("UR10", "RMPflow")
         self.rmp_flow = mg.lula.motion_policies.RmpFlow(**self.rmp_flow_config)
 
-        self.articulation_rmp = mg.ArticulationMotionPolicy(robot_articulation, self.rmp_flow, physics_dt)
+        self.articulation_rmp = mg.ArticulationMotionPolicy(
+            robot_articulation, self.rmp_flow, physics_dt
+        )
 
         mg.MotionPolicyController.__init__(self, name=name, articulation_motion_policy=self.articulation_rmp)
         (
@@ -97,14 +106,16 @@ class RoxProject(BaseSample):
         self.val = 0 # 1(R, 윗쪽) 2(G, 가운데) 3(B,아래쪽)
         self.depth = 0
         self.cam_color = None
+
         return
 
-
+    def write_log(self,key, value):
+        os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+        with open(LOG_PATH, "w") as f:
+            f.write(f"{key}:{value}")
 
     def setup_scene(self):
         world = self.get_world()
-        # self.sensor = SensorSystem()
-
         #### sensor 구현 ###
         self.cam_body = world.scene.add(
             DynamicCylinder(
@@ -203,6 +214,7 @@ class RoxProject(BaseSample):
             )
         )
         return
+    
     async def setup_post_load(self):
         self._world = self.get_world()
         self.camera.initialize()
@@ -233,11 +245,11 @@ class RoxProject(BaseSample):
         _total_rgb = total_rgb.sum(axis=0)
 
         if _total_rgb[0] > _total_rgb[1] and _total_rgb[0] > _total_rgb[2]:
-            return "빨간색"
+            return "red"
         elif _total_rgb[1] > _total_rgb[0] and _total_rgb[1] > _total_rgb[2]:
-            return "초록색"
+            return "green"
         else:
-            return "파란색"
+            return "blue"
 
 
     def get_lidar_depth(self):
@@ -256,6 +268,8 @@ class RoxProject(BaseSample):
         if self.task_phase == 0 : 
             value = self.get_lidar_depth()
             if value < 0.43 :
+                #로그기록추가-depth
+                # self.write_log("depth", value) 
                 self.task_phase = 1
 
         # phase 2: 카메라 RGB 확인 후 분류 라벨정하기
@@ -264,15 +278,19 @@ class RoxProject(BaseSample):
             current_x_position = cube_position[0]
             self.cam_color = self.get_camera_color()
             
-            if self.cam_color == "빨간색":
+            if self.cam_color == "red":
                 self.val = 1
-            elif self.cam_color == "초록색":
+            elif self.cam_color == "green":
                 self.val = 2
-            elif self.cam_color == "파란색":
+            elif self.cam_color == "blue":
                 self.val = 3
             
             print(self.cam_color)
             print(self.val)
+
+            #로그기록추가-val(color)
+            self.write_log("color", self.cam_color)
+
             self.task_phase = 2
         # elif self.task_phase == 1:
         #     cube_position, cube_orientation = self.cube.get_world_pose()
