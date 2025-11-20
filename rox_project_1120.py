@@ -80,6 +80,8 @@ class RoxProject(BaseSample):
         # 랜덤 큐브 생성
         self._random_cube_spawn_position = np.array([-1.63, 0.0, 2])
         self._random_cube_position = self._random_cube_spawn_position.copy()
+        self._cube_height = 0.05
+        self._stack_level = 0  
 
         self._cube_spawn_interval = 3.0
         self._cube_spawn_timer = 0.0
