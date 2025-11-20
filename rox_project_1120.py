@@ -77,6 +77,14 @@ class RoxProject(BaseSample):
             np.array([0.0, 0.0, 1.0]),
         ]
 
+        # 랜덤 큐브 생성
+        self._random_cube_spawn_position = np.array([-1.63, 0.0, 2])
+        self._random_cube_position = self._random_cube_spawn_position.copy()
+
+        self._cube_spawn_interval = 3.0
+        self._cube_spawn_timer = 0.0
+
+
         # 첫 번째 로봇 위치 (기존)
         self.robot_position = np.array([7.25, 0.0, 0.3])
 
@@ -110,7 +118,7 @@ class RoxProject(BaseSample):
         self._cube_index = 0
         self.cube = None
         self.cube_name = ""
-        self.cube_spawn = np.array([-1.63, 0.0, 2])
+        # self.cube_spawn = np.array([-1.63, 0.0, 2])
         self.cube_prim = "/World/Trash_Random"
 
         # sensor init 부분
@@ -330,7 +338,7 @@ class RoxProject(BaseSample):
             DynamicCuboid(
             prim_path=self.cube_prim,
             name="random_cube_0",
-            position=self.cube_spawn,
+            position=self._random_cube_spawn_position,
             scale=np.array([0.15, 0.15, 0.15]),
             color=random.choice(self.colors),
             )
@@ -347,6 +355,8 @@ class RoxProject(BaseSample):
         # 첫 번째 큐브 레퍼런스
         self.cube_name = f"random_cube_{self._cube_index}"
         self.cube = self._world.scene.get_object(self.cube_name)
+
+        
 
         # 첫 번째 로봇 (기존 제어 대상)
         self.robots = self._world.scene.get_object("my_ur10")
@@ -457,6 +467,25 @@ class RoxProject(BaseSample):
         await self._world.play_async()
         self.task_phase = 1
         return
+
+    def _spawn_new_cube(self):
+        self._cube_index += 1
+        self.cube_name = f"random_cube_{self._cube_index}"
+        prim_path = f"/World/RandomCube_{self._cube_index}"
+
+        cube_color = random.choice(self.colors)
+
+        self.cube = self._world.scene.add(
+            DynamicCuboid(
+                prim_path=prim_path,
+                name=self.cube_name,
+                position=self._random_cube_spawn_position,
+                scale=np.array([0.15, 0.15, 0.15]),
+                color=cube_color,
+            )
+        )
+        self._random_cube_position = self._random_cube_spawn_position.copy()
+        print(f"Spawned new cube: {self.cube_name} color={cube_color} at {self._random_cube_spawn_position}")
 
 
     def _step_extra_robot(self, task: dict, step_size: float):
@@ -583,7 +612,7 @@ class RoxProject(BaseSample):
             # 어떤 카트인지 찾기 (UR10_2 → Cart_1, UR10_3 → Cart_2, UR10_4 → Cart_3)
             cart_path = self.robot_to_cart.get(robot.name, None)
             if cart_path is not None:
-                self.cart_cube_count[cart_path] = 2 # 강제
+                self.cart_cube_count[cart_path] += 1
                 print(f"[{robot.name}] cube placed on {cart_path}. count = {self.cart_cube_count[cart_path]}")
 
                 # 🔥카트 위 큐브가 2개 이상이면 이동 플래그 ON
@@ -787,6 +816,16 @@ class RoxProject(BaseSample):
                 self.cspace_controller.reset()
                 self._wait_counter = 0
                 self.task_phase = 10
+        
+        # phase 10: 일정 시간 기다렸다가 "새로운" 큐브를 컨베이어 시작 위치에 생성
+        elif self.task_phase == 10:
+            self._cube_spawn_timer += step_size
+
+            if self._cube_spawn_timer >= self._cube_spawn_interval:
+                self._spawn_new_cube()
+
+                self._cube_spawn_timer = 0.0
+                self.task_phase = 1
 
         # --------------------- 카트 이동 ---------------------
         for cart_path, moving in self.cart_moving.items():
