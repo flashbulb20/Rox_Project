@@ -1,0 +1,18 @@
+[package]
+format_version = 1
+name = "my_custom_info_display"
+title = "My Custom Info Display"
+description = "Isaac Sim Custom RGB Panel"
+version = "1.0.0"
+category = "Tools"
+
+[python]
+[[python.module]]
+name = "omni.info_display_tool"
+
+[sample.rox_project]
+title = "Rox Project"
+description = "Robot task logic with sensors"
+category = "Robotics"
+keywords = ["robotics", "ur10", "sensor"]
+
